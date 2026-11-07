@@ -26,12 +26,19 @@ function safeEqual(a, b) {
   return r === 0;
 }
 
+// Difesa CSRF: con Referrer-Policy rigida l'header Origin può valere "null", quindi si usa Sec-Fetch-Site
+function sameOrigin(request, url) {
+  const site = request.headers.get('Sec-Fetch-Site');
+  if (site) return site === 'same-origin';
+  return request.headers.get('Origin') === url.origin;
+}
+
 function harden(res, csp) {
   const r = new Response(res.body, res);
   r.headers.set('Content-Security-Policy', csp);
   r.headers.set('X-Content-Type-Options', 'nosniff');
   r.headers.set('X-Frame-Options', 'DENY');
-  r.headers.set('Referrer-Policy', 'no-referrer');
+  r.headers.set('Referrer-Policy', 'same-origin');
   r.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   r.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   r.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
@@ -82,7 +89,7 @@ export async function onRequest({ request, env, next }) {
 
   if (url.pathname === '/login' && request.method === 'POST') {
     // Difesa CSRF: l'origine deve essere il sito stesso
-    if (request.headers.get('Origin') !== url.origin) return new Response('Richiesta non valida', { status: 403 });
+    if (!sameOrigin(request, url)) return new Response('Richiesta non valida', { status: 403 });
     if (Number(request.headers.get('Content-Length') || 0) > 2000) return new Response('Troppo grande', { status: 413 });
     const form = await request.formData();
     const u = String(form.get('u') || '');
