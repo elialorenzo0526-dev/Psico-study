@@ -35,7 +35,7 @@ const fill = new THREE.DirectionalLight(0x9fc4ff, 0.6);
 fill.position.set(-4, -1, -3);
 scene.add(fill);
 
-const cutPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0); // tiene x <= 0
+const cutPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), -0.04); // tiene x <= -0.04
 const mats = [];
 const material = (color, opts = {}) => {
   const m = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0, ...opts });
@@ -43,29 +43,53 @@ const material = (color, opts = {}) => {
   return m;
 };
 
-// ---------- corteccia (due emisferi con circonvoluzioni simulate) ----------
-const noise = (x, y, z) =>
-  0.028 * Math.sin(9 * x + 2 * z) * Math.sin(8 * y + 3 * x) +
-  0.02 * Math.sin(13 * z + 5 * y) * Math.sin(11 * x - 4 * y) +
-  0.012 * Math.sin(19 * y + 3 * z);
-
+// ---------- corteccia (forma anatomica semplificata, solchi ombreggiati) ----------
 const cortexMeshes = [];
-const cortexMat = material(0xffffff, { vertexColors: true, roughness: 0.7 });
+const cortexMat = material(0xffffff, { vertexColors: true, roughness: 0.75 });
+const BRAIN_C = new THREE.Vector3(0, -0.05, -0.1);
+const anchors = { frontale: [], parietale: [], temporale: [], occipitale: [] };
+const ridge = (v) => 1 - Math.abs(Math.sin(v));
 
 function hemisphere(side) {
-  const g = new THREE.SphereGeometry(1, 128, 96);
-  const p = g.attributes.position;
-  const reg = new Uint8Array(p.count);
-  for (let i = 0; i < p.count; i++) {
+  const g = new THREE.SphereGeometry(1, 160, 112);
+  const p = g.attributes.position, n = p.count;
+  const reg = new Uint8Array(n), shade = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
     const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-    reg[i] = z < -0.55 ? 3 : y < -0.2 && z < 0.6 ? 2 : z > 0.15 ? 0 : 1; // occipitale, temporale, frontale, parietale
-    const d = 1 + noise(x, y, z);
-    p.setXYZ(i, side * 0.49 + x * 0.48 * d, y * 0.75 * d, z * 1.2 * d);
+    // lobi: occipitale, temporale (sotto la scissura laterale), frontale (davanti al solco centrale), parietale
+    reg[i] = z < -0.55 ? 3 : y < -0.2 - 0.25 * z && z < 0.62 ? 2 : z > 0.12 - 0.15 * y ? 0 : 1;
+    const gy = ridge(11 * x + 3 * y + 2 * z) * ridge(9 * y - 4 * x + 5 * z) + 0.6 * ridge(17 * z + 6 * y) * ridge(14 * x + 5 * z);
+    shade[i] = Math.min(1, gy / 1.2);
+    const d = 1 + 0.05 * (gy - 0.7);
+    let sx = Math.max(x * side, 0); // parete mediale piatta, lato laterale arrotondato
+    let sy = y < 0 ? y * 0.6 : y; // base appiattita
+    const temp = Math.exp(-(((z - 0.1) / 0.5) ** 2)) * Math.max(-y, 0); // rigonfiamento temporale
+    sx *= 1 + 0.12 * temp;
+    sy -= 0.2 * temp;
+    if (z > 0.3) sx *= 1 - 0.3 * (z - 0.3); // polo frontale piu stretto
+    if (z < -0.5) { sx *= 1 + 0.2 * (z + 0.5); sy *= 1 + 0.2 * (z + 0.5); }
+    p.setXYZ(i, side * (0.03 + sx * 0.95 * d), sy * 0.78 * d, z * 1.2 * d);
   }
   g.computeVertexNormals();
-  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(p.count * 3), 3));
+  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+  // punto sulla superficie di ogni lobo dove ancorare l'etichetta
+  const v = new THREE.Vector3();
+  for (let r = 0; r < 4; r++) {
+    const c = new THREE.Vector3();
+    let k = 0;
+    for (let i = 0; i < n; i++) if (reg[i] === r && Math.abs(p.getX(i)) > 0.25) { c.add(v.fromBufferAttribute(p, i)); k++; }
+    c.divideScalar(k || 1);
+    const dir = c.clone().sub(BRAIN_C).normalize();
+    let best = -1e9, bv = c;
+    for (let i = 0; i < n; i++) if (reg[i] === r) {
+      v.fromBufferAttribute(p, i);
+      const sc = v.clone().sub(BRAIN_C).dot(dir);
+      if (sc > best) { best = sc; bv = v.clone(); }
+    }
+    anchors[LOBES[r]].push(bv);
+  }
   const m = new THREE.Mesh(g, cortexMat);
-  m.userData = { cortex: true, reg };
+  m.userData = { cortex: true, reg, shade };
   cortexMeshes.push(m);
   scene.add(m);
 }
@@ -75,11 +99,12 @@ hemisphere(1);
 function paint(sel) {
   const lobeSel = LOBES.includes(sel);
   const cols = LOBES.map((id) => new THREE.Color(byId[id].colore));
+  const grey = new THREE.Color(0x56606c);
   for (const m of cortexMeshes) {
-    const c = m.geometry.attributes.color, reg = m.userData.reg;
+    const c = m.geometry.attributes.color, { reg, shade } = m.userData;
     for (let i = 0; i < reg.length; i++) {
-      const col = cols[reg[i]].clone();
-      if (lobeSel) col.multiplyScalar(LOBES[reg[i]] === sel ? 1.2 : 0.4);
+      const on = !lobeSel || LOBES[reg[i]] === sel;
+      const col = (on ? cols[reg[i]] : grey).clone().multiplyScalar((on && lobeSel ? 1.25 : 1) * (0.62 + 0.38 * shade[i]));
       c.setXYZ(i, col.r, col.g, col.b);
     }
     c.needsUpdate = true;
@@ -91,11 +116,13 @@ const picks = [...cortexMeshes];
 const partMeshes = {};
 
 function add(id, geom, pos, scale = [1, 1, 1], rot = [0, 0, 0]) {
-  const mesh = new THREE.Mesh(geom, material(byId[id].colore, { emissive: 0x000000 }));
+  const mesh = new THREE.Mesh(geom, material(byId[id].colore, { emissive: byId[id].colore, emissiveIntensity: 0, transparent: true }));
   mesh.position.set(...pos);
   mesh.scale.set(...scale);
   mesh.rotation.set(...rot);
   mesh.userData.id = id;
+  mesh.updateMatrixWorld();
+  mesh.userData.center = new THREE.Box3().setFromObject(mesh).getCenter(new THREE.Vector3());
   scene.add(mesh);
   picks.push(mesh);
   (partMeshes[id] ||= []).push(mesh);
@@ -124,7 +151,7 @@ for (let i = 0; i < cp.count; i++) {
   cp.setXYZ(i, cp.getX(i) * d, cp.getY(i), cp.getZ(i) * d);
 }
 cb.computeVertexNormals();
-add('cervelletto', cb, [0, -0.82, -0.85], [0.6, 0.26, 0.36]);
+add('cervelletto', cb, [0, -0.72, -0.85], [0.6, 0.26, 0.36]);
 
 // ---------- stato e interfaccia ----------
 const state = { sel: null, cut: false };
@@ -191,6 +218,7 @@ function showInfo(p) {
     el('h3', '', 'I miei appunti'), ta, st,
     el('p', 'src', 'Terminologia: Terminologia Anatomica. Per approfondire: Kandel et al., Principi di neuroscienze; Purves et al., Neuroscience.'),
   );
+  box.style.setProperty('--c', p.colore);
   box.scrollTop = 0;
 }
 
@@ -199,10 +227,10 @@ function select(id) {
   if (!p) return;
   state.sel = id;
   paint(id);
-  for (const [pid, arr] of Object.entries(partMeshes)) {
-    for (const m of arr) m.material.emissive.set(pid === id ? 0x3a3a3a : 0x000000);
-  }
+  styleParts(id);
   if (p.deep && cortexMat.opacity > 0.5) setOpacity(0.15);
+  if (!state.cut) focusOn(id);
+  setTag(p);
   document.querySelectorAll('.item').forEach((b) => b.setAttribute('aria-current', String(b.dataset.id === id)));
   showInfo(p);
 }
@@ -215,6 +243,7 @@ for (const g of GROUPS) {
     const b = el('button', 'item');
     b.type = 'button';
     b.dataset.id = p.id;
+    b.style.setProperty('--c', p.colore);
     const dot = el('span', 'dot');
     dot.style.background = p.colore;
     b.append(dot, el('span', '', p.nome));
@@ -259,7 +288,7 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   const r = renderer.domElement.getBoundingClientRect();
   ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
   for (const h of ray.intersectObjects(picks, false)) {
-    if (state.cut && h.point.x > 0.001) continue; // parte tagliata: invisibile
+    if (state.cut && h.point.x > -0.04) continue; // parte tagliata: invisibile
     const o = h.object;
     if (o.userData.cortex) {
       if (cortexMat.opacity < 0.5) continue; // corteccia trasparente: non selezionabile
@@ -282,7 +311,57 @@ resize();
 
 paint(null);
 loadNotes();
-renderer.setAnimationLoop(() => {
+const tag = el('div', 'tag3d');
+tag.hidden = true;
+$('#view').append(tag);
+function setTag(p) {
+  tag.replaceChildren(el('b', '', p.nome), el('span', '', LATINO[p.id]));
+  tag.style.setProperty('--c', p.colore);
+  tag.hidden = false;
+}
+const nearest = (pts) => pts.reduce((a, b) => (a.distanceTo(camera.position) < b.distanceTo(camera.position) ? a : b));
+const pointsOf = (id) => (LOBES.includes(id) ? anchors[id] : partMeshes[id].map((m) => m.userData.center));
+
+// la parte scelta resta visibile anche attraverso la corteccia, le altre si attenuano
+function styleParts(sel) {
+  const partSel = sel && !LOBES.includes(sel);
+  for (const [pid, arr] of Object.entries(partMeshes)) {
+    for (const m of arr) {
+      const on = pid === sel, mt = m.material;
+      mt.opacity = partSel && !on ? 0.18 : 1;
+      mt.depthWrite = mt.opacity === 1;
+      mt.depthTest = !on;
+      mt.emissiveIntensity = 0;
+      m.renderOrder = on ? 10 : 0;
+    }
+  }
+}
+
+let fly = null;
+controls.addEventListener('start', () => (fly = null));
+function focusOn(id) {
+  const t = nearest(pointsOf(id)).clone();
+  const sign = camera.position.x >= 0 ? 1 : -1;
+  const dir = t.clone().sub(BRAIN_C);
+  let dist = 4.2, tgt = t.clone().lerp(BRAIN_C, 0.5);
+  if (!LOBES.includes(id)) { dir.set(sign * 0.9, dir.y * 0.4 + 0.25, dir.z * 0.3); dist = 3.4; tgt = t; }
+  fly = { pos: t.clone().add(dir.normalize().multiplyScalar(dist)), tgt };
+}
+
+const v3 = new THREE.Vector3();
+renderer.setAnimationLoop((now) => {
+  if (fly) {
+    camera.position.lerp(fly.pos, 0.07);
+    controls.target.lerp(fly.tgt, 0.07);
+    if (camera.position.distanceTo(fly.pos) < 0.02) fly = null;
+  }
   controls.update();
+  const s = state.sel;
+  if (s && partMeshes[s]) for (const m of partMeshes[s]) m.material.emissiveIntensity = 0.45 + 0.3 * Math.sin(now / 250);
+  if (s) {
+    v3.copy(nearest(pointsOf(s))).project(camera);
+    tag.style.left = (v3.x * 0.5 + 0.5) * stage.clientWidth + 'px';
+    tag.style.top = (-v3.y * 0.5 + 0.5) * stage.clientHeight + 'px';
+  }
   renderer.render(scene, camera);
 });
