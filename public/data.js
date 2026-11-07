@@ -90,6 +90,24 @@ export const PARTS = [
     dettagli: 'Pur occupando circa il 10% del volume encefalico, contiene la maggior parte dei neuroni dell\'intero cervello. Confronta il movimento programmato con quello eseguito e lo corregge. Contribuisce anche ad alcune funzioni cognitive.',
     clinica: 'Lesioni cerebellari causano atassia (andatura instabile), dismetria e tremore intenzionale. Non causano paralisi: il movimento c\'è ma è scoordinato.',
   },
+  {
+    id: 'insula', gruppo: 'cortex', nome: 'Insula', colore: '#d98cc4',
+    funzione: 'Interocezione (percezione dei segnali interni del corpo), consapevolezza emotiva, gusto, dolore ed empatia.',
+    dettagli: 'Corteccia nascosta in profondità nella scissura laterale (di Silvio), coperta dagli opercoli di lobo frontale, parietale e temporale. L\'insula anteriore è collegata a emozioni e consapevolezza, quella posteriore a sensazioni corporee e dolore.',
+    clinica: 'È coinvolta in dipendenze, ansia, disgusto e nella percezione del dolore. Alterazioni insulari sono studiate nei disturbi dell\'umore e alimentari.',
+  },
+  {
+    id: 'cingolato', gruppo: 'cortex', nome: 'Corteccia cingolata', colore: '#6fcf7a',
+    funzione: 'Regolazione emotiva, monitoraggio degli errori e dei conflitti, attenzione e motivazione.',
+    dettagli: 'Si trova sulla faccia mediale degli emisferi, sopra il corpo calloso (visibile con la sezione sagittale). La parte anteriore partecipa a controllo cognitivo ed emozioni, la posteriore alla memoria autobiografica e alla rete di default.',
+    clinica: 'Il cingolato anteriore è implicato in depressione, disturbo ossessivo-compulsivo e dolore. Fa parte del sistema limbico.',
+  },
+  {
+    id: 'ventricoli', gruppo: 'sotto', nome: 'Sistema ventricolare', colore: '#8fd3ff', deep: true,
+    funzione: 'Produzione e circolazione del liquido cerebrospinale (liquor), che protegge e nutre il sistema nervoso.',
+    dettagli: 'Comprende i due ventricoli laterali, il terzo e il quarto ventricolo, collegati da piccoli canali. Il liquor è prodotto soprattutto dai plessi corioidei e riassorbito nel sangue venoso.',
+    clinica: 'Un blocco della circolazione può causare idrocefalo. Nella schizofrenia e in alcune demenze si osservano ventricoli ingranditi.',
+  },
 ];
 
 // Nomenclatura latina secondo la Terminologia Anatomica
@@ -97,5 +115,5 @@ export const LATINO = {
   frontale: 'Lobus frontalis', parietale: 'Lobus parietalis', temporale: 'Lobus temporalis', occipitale: 'Lobus occipitalis',
   corpo_calloso: 'Corpus callosum', talamo: 'Thalamus', ipotalamo: 'Hypothalamus', ippocampo: 'Hippocampus',
   amigdala: 'Corpus amygdaloideum', gangli: 'Nuclei basales', mesencefalo: 'Mesencephalon', ponte: 'Pons',
-  bulbo: 'Medulla oblongata', cervelletto: 'Cerebellum',
+  bulbo: 'Medulla oblongata', cervelletto: 'Cerebellum', insula: 'Insula', cingolato: 'Gyrus cinguli', ventricoli: 'Ventriculi cerebri',
 };
