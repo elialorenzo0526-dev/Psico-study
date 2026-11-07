@@ -7,7 +7,9 @@ export async function onRequest({ request, env }) {
     return new Response((await env.NOTES.get('notes')) || '{}', { headers: json });
   }
   if (request.method === 'PUT') {
-    if (request.headers.get('Origin') !== new URL(request.url).origin) return new Response('Origine non valida', { status: 403 });
+    const site = request.headers.get('Sec-Fetch-Site');
+    const ok = site ? site === 'same-origin' : request.headers.get('Origin') === new URL(request.url).origin;
+    if (!ok) return new Response('Origine non valida', { status: 403 });
     const text = await request.text();
     if (text.length > 200000) return new Response('Troppo grande', { status: 413 });
     let data;
