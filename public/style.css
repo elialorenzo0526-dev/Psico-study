@@ -54,3 +54,12 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{
 @media(max-width:480px){h1{font-size:19px}.tag3d b{font-size:13px}.tag3d span{display:none}}
 @media(max-height:500px) and (orientation:landscape){#view{height:80vh;height:80dvh}#info{scroll-margin-top:calc(80dvh + 8px)}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+.gal{margin:10px 0 4px}
+.gal img{display:block;width:100%;max-width:420px;aspect-ratio:1;object-fit:contain;background:#000;border-radius:8px;cursor:zoom-in}
+.gtabs{display:flex;gap:6px;margin:8px 0}
+.gtabs button,#tools select{min-height:36px;padding:6px 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--tx);font:inherit;font-size:14px;cursor:pointer}
+.gtabs button[aria-pressed=true]{background:var(--ac);color:#08202a;border-color:var(--ac)}
+.gal .cap{font-size:13px;color:var(--mut);max-width:420px}
+#zoom{padding:0;border:0;background:#000;width:min(94vw,820px);border-radius:10px}
+#zoom::backdrop{background:#000c}
+#zoom img{display:block;width:100%;height:auto;cursor:zoom-out}

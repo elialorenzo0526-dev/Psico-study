@@ -23,6 +23,10 @@
     <div id="stage" aria-label="Modello 3D del cervello: trascina per ruotare, scorri per ingrandire, tocca una struttura per leggerla"></div>
     <div id="tools">
       <label>Trasparenza corteccia <input id="op" type="range" min="0.08" max="1" step="0.01" value="1"></label>
+      <select id="views" aria-label="Punto di vista">
+        <option value="">Punto di vista</option><option value="l">Laterale sinistra</option><option value="r">Laterale destra</option>
+        <option value="t">Dall'alto</option><option value="b">Dal basso</option><option value="f">Frontale</option><option value="p">Posteriore</option>
+      </select>
       <button id="cut" type="button" aria-pressed="false">Sezione sagittale</button>
       <button id="rot" type="button" aria-pressed="false">Rotazione automatica</button>
       <button id="reset" type="button">Ripristina vista</button>
@@ -32,6 +36,7 @@
     <p class="hint">Tocca una zona del cervello nel modello o scegli una voce dall'elenco.</p>
   </article>
 </main>
+<dialog id="zoom"><img alt=""></dialog>
 <script type="module" src="/app.js"></script>
 </body>
 </html>

@@ -136,6 +136,28 @@ async function loadNotes() {
   if (state.sel) showInfo(byId[state.sel]);
 }
 
+let plane = 'sagittale';
+function gallery(p) {
+  const box = el('div', 'gal'), img = el('img'), bar = el('div', 'gtabs');
+  const set = (pl) => {
+    plane = pl;
+    img.src = `/img/${p.id}_${pl}.jpg`;
+    img.alt = `Sezione ${pl} di risonanza magnetica con ${p.nome} evidenziata`;
+    bar.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pl === pl)));
+  };
+  for (const pl of ['sagittale', 'coronale', 'assiale']) {
+    const b = el('button', '', pl[0].toUpperCase() + pl.slice(1));
+    b.type = 'button';
+    b.dataset.pl = pl;
+    b.addEventListener('click', () => set(pl));
+    bar.append(b);
+  }
+  img.addEventListener('click', () => { const d = $('#zoom'); d.querySelector('img').src = img.src; d.showModal(); });
+  box.append(img, bar, el('p', 'cap', 'Risonanza magnetica di un cervello standard con la struttura in colore. S = sinistra, D = destra, A = anteriore, P = posteriore. Tocca l\'immagine per ingrandirla.'));
+  set(plane);
+  return box;
+}
+
 function showInfo(p) {
   const box = $('#info');
   const ta = el('textarea', 'note');
@@ -154,11 +176,12 @@ function showInfo(p) {
     el('span', 'tag', GROUPS.find((g) => g.id === p.gruppo).nome),
     el('h2', '', p.nome),
     el('p', 'tag', LATINO[p.id]),
+    gallery(p),
     el('h3', '', 'Funzione'), el('p', '', p.funzione),
     el('h3', '', 'Anatomia e dettagli'), el('p', '', p.dettagli),
     el('h3', '', 'Clinica e storia della ricerca'), el('p', '', p.clinica),
     el('h3', '', 'I miei appunti'), ta, st,
-    el('p', 'src', 'Terminologia: Terminologia Anatomica. Modello 3D ricostruito da dati di neuroimaging (superficie FreeSurfer fsaverage, atlante Desikan-Killiany); ipotalamo e suddivisione del tronco encefalico sono approssimati. Per approfondire: Kandel et al., Principi di neuroscienze; Purves et al., Neuroscience.'),
+    el('p', 'src', 'Terminologia: Terminologia Anatomica. Immagini: template MRI MNI152 (ICBM 2009) con atlante Desikan-Killiany. Modello 3D ricostruito da dati di neuroimaging (superficie FreeSurfer fsaverage, atlante Desikan-Killiany); ipotalamo e suddivisione del tronco encefalico sono approssimati. Per approfondire: Kandel et al., Principi di neuroscienze; Purves et al., Neuroscience.'),
   );
   box.style.setProperty('--c', p.colore);
   box.scrollTop = 0;
@@ -248,6 +271,12 @@ $('#cut').addEventListener('click', () => {
 });
 $('#reset').addEventListener('click', () => { fly = { pos: HOME.clone(), tgt: C0.clone() }; });
 
+$('#views').addEventListener('change', (e) => {
+  const d = { l: [1, 0, 0], r: [-1, 0, 0], t: [0, 1, 0.001], b: [0, -1, 0.001], f: [0, 0, 1], p: [0, 0, -1] }[e.target.value];
+  if (d) fly = { pos: new THREE.Vector3(...d).multiplyScalar(4.2), tgt: C0.clone() };
+  e.target.value = '';
+});
+$('#zoom').addEventListener('click', () => $('#zoom').close());
 const ray = new THREE.Raycaster();
 let down = null;
 renderer.domElement.addEventListener('pointerdown', (e) => (down = [e.clientX, e.clientY]));
